@@ -59,17 +59,14 @@ module.exports = {
             time: time,
         })
         let presses = 0;
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('primary')
-                    .setLabel('Click me!')
-                    .setStyle(ButtonStyle.Primary),
-                new ButtonBuilder()
-                    .setCustomId('Secondary')
-                    .setLabel('Click me too!')
-                    .setStyle(ButtonStyle.Secondary),
-            );
+        var str = "new ActionRowBuilder().addComponents(";
+        for(var i = 0; i < choices.length; i++) {
+            str += `new ButtonBuilder().setCustomId("${choices[i]}").setLabel("${choices[i]}!").setStyle(ButtonStyle.Primary),`;
+        }
+        str += ");";
+        
+        const row = eval(str)
+     
 
         const message = await channel.send({ content: 'test', components: [row], fetchReply: true, })
             .then(msg => {
