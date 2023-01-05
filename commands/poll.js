@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, ApplicationCommandOptionWithChoicesAndAutocompleteMixin } = require('discord.js');
 
 
 const wait = require('node:timers/promises').setTimeout;
@@ -45,9 +45,11 @@ module.exports = {
             interaction.options.getString('option4') ?? '',
             interaction.options.getString('option5') ?? '',
         ]
-
         choices = choices.filter(item => item);
-        console.log(choices);
+
+        let score = new Array(choices.length).fill(0);
+        var votes = []
+
         const time =
             // CURRENTLY SET TO SECONDS
             interaction.options.getInteger("duration") * 1000
@@ -55,18 +57,17 @@ module.exports = {
             ;
 
         const collector = interaction.channel.createMessageComponentCollector({
-            //max: "1",
             time: time,
         })
-        let presses = 0;
+
         var str = "new ActionRowBuilder().addComponents(";
-        for(var i = 0; i < choices.length; i++) {
+        for (var i = 0; i < choices.length; i++) {
             str += `new ButtonBuilder().setCustomId("${choices[i]}").setLabel("${choices[i]}!").setStyle(ButtonStyle.Primary),`;
         }
         str += ");";
-        
+
         const row = eval(str)
-     
+
 
         const message = await channel.send({ content: 'test', components: [row], fetchReply: true, })
             .then(msg => {
@@ -74,17 +75,39 @@ module.exports = {
             });
 
         collector.on("collect", async (interaction) => {
-            presses = presses + 1;
-            await interaction.reply({ content: 'Thank you for voting!', ephemeral: true })
+            let choice = (choices.findIndex((x) => x === interaction.customId))
+
+            if (!exists(votes, interaction.user.id)) {
+                votes.push([interaction.user.id, interaction.customId])
+                // console.log(votes[0])
+                console.log(`User ${interaction.user.id} pressed ${interaction.customId}`)
+                score[choice] = score[choice] + 1;
+                // presses = presses + 1;
+
+                await interaction.reply({ content: 'Thank you for voting!', ephemeral: true })
+            }
+            else (await interaction.reply({ content: 'You have already voted in this poll!', ephemeral: true }))
+            
         })
         collector.on("end", async (collected) => {
+            let end = "Results:"
+            for (let i = 0; i < choices.length; i++) {
+                end+= `\n${choices[i]} got ${score[i]} votes`
+            }
+            console.log(end);
             console.log(`Collected ${collected.size} clicks`);
         })
-
 
         await interaction.deferReply();
         await wait(time);
         await interaction.deleteReply();
-        await interaction.followUp(`Poll Ended! with ${presses} presses!`);
+
+        await interaction.followUp(`Poll has ended!`);
     },
+
 };
+
+function exists(arr, search) {
+    console.log('CHECK')
+    return arr.some(row => row.includes(search));
+}
