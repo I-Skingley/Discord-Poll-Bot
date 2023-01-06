@@ -1,4 +1,5 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, ApplicationCommandOptionWithChoicesAndAutocompleteMixin } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, ApplicationCommandOptionWithChoicesAndAutocompleteMixin, EmbedBuilder } = require('discord.js');
+const QuickChart = require('quickchart-js');
 
 
 const wait = require('node:timers/promises').setTimeout;
@@ -37,7 +38,7 @@ module.exports = {
                 .setDescription('Fifth option'))
     ,
     async execute(interaction, channel) {
-
+        const question = interaction.options.getString('question');
         let choices = [
             interaction.options.getString('option1'),
             interaction.options.getString('option2'),
@@ -45,10 +46,11 @@ module.exports = {
             interaction.options.getString('option4') ?? '',
             interaction.options.getString('option5') ?? '',
         ]
+        // Remove empty choices
         choices = choices.filter(item => item);
 
         let score = new Array(choices.length).fill(0);
-        var votes = []
+        let votes = [];
 
         const time =
             // CURRENTLY SET TO SECONDS
@@ -69,7 +71,7 @@ module.exports = {
         const row = eval(str)
 
 
-        const message = await channel.send({ content: 'test', components: [row], fetchReply: true, })
+        const message = await channel.send({ content: question, components: [row], fetchReply: true, })
             .then(msg => {
                 setTimeout(() => msg.delete(), time)
             });
@@ -78,36 +80,60 @@ module.exports = {
             let choice = (choices.findIndex((x) => x === interaction.customId))
 
             if (!exists(votes, interaction.user.id)) {
-                votes.push([interaction.user.id, interaction.customId])
-                // console.log(votes[0])
-                console.log(`User ${interaction.user.id} pressed ${interaction.customId}`)
-                score[choice] = score[choice] + 1;
-                // presses = presses + 1;
+                votes.push([interaction.user.id, interaction.customId]);
+                // console.log(`User ${interaction.user.id} pressed ${interaction.customId}`);
+                score[choice] += 1;
 
-                await interaction.reply({ content: 'Thank you for voting!', ephemeral: true })
+                await interaction.reply({ content: 'Thank you for voting!', ephemeral: true });
             }
-            else (await interaction.reply({ content: 'You have already voted in this poll!', ephemeral: true }))
-            
+            else (await interaction.reply({ content: 'You have already voted in this poll!', ephemeral: true }));
+            score[choice] += 1;
+
+
         })
         collector.on("end", async (collected) => {
-            let end = "Results:"
+            let end = "Results:";
             for (let i = 0; i < choices.length; i++) {
-                end+= `\n${choices[i]} got ${score[i]} votes`
+                end += `\n${choices[i]} got ${score[i]} votes`;
             }
-            console.log(end);
-            console.log(`Collected ${collected.size} clicks`);
+            var result = [];
+            for (var i = 0; i < choices.length; i++) {
+                result.push([choices[i], score[i]]);
+            }
+
+
+            // console.log(result);
+            // console.log(end);
+            // console.log(`Collected ${collected.size} clicks`);
         })
 
         await interaction.deferReply();
         await wait(time);
         await interaction.deleteReply();
-
-        await interaction.followUp(`Poll has ended!`);
+        const chartEmbed = new EmbedBuilder()
+            .setTitle(question)
+            .setDescription('Here are the results of the poll:')
+            .setImage(chart(choices, score).getUrl())
+            ;
+//        console.log(chart(choices, score).getUrl());
+        await interaction.followUp({ embeds: [chartEmbed] });
     },
 
 };
 
+function chart(choices, score) {
+    const myChart = new QuickChart();
+    myChart.setConfig({
+        type: 'bar',
+        data: { labels: choices, datasets: [{ label: '# Votes', data: score }] },
+    })
+        .setWidth(800)
+        .setHeight(400);
+    return myChart;
+}
+
 function exists(arr, search) {
-    console.log('CHECK')
+//    console.log('CHECK');
     return arr.some(row => row.includes(search));
 }
+
